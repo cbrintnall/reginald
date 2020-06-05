@@ -7,7 +7,8 @@ config :reginald,
   server_api_token: System.get_env("api_key"),
   server_api_port: 8080,
   server_port: 25565,
-  prefix: "!"
+  prefix: "!",
+  source: "https://github.com/cbrintnall/reginald"
 
 config :nostrum,
   token: System.get_env("bot_token"),

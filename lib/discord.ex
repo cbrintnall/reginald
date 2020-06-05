@@ -40,10 +40,15 @@ defmodule Reginald.Handler do
   end
 
   defp validate(string) do
-    if String.length(string) > 0 && String.starts_with?(string, "!") do
-      String.split(String.slice(string, 1..-1), " ")
-    else
-      :invalid
+    prefix = Application.fetch_env!(:reginald, :prefix)
+
+    cond do
+      # A string whose first character is <prefix> is a command
+      String.length(string) > 0 && String.starts_with?(string, prefix) -> 
+        { :command, String.split(String.slice(string, 1..-1), " ") }
+      
+      # Otherwise take in the full text from the server, this gets sent to the minecraft chat
+      String.length(string) > 0 -> { :chat, string }
     end
   end
 
@@ -58,11 +63,22 @@ defmodule Reginald.Handler do
   @impl true
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
     case event = validate(msg.content) do
-      ["ping"] ->
+      { :command,  ["ping"] } ->
         Api.create_message(msg.channel_id, "Pong!")
 
-      ["server" | _tail] ->
+      { :command, ["help"] } ->
+        Api.create_message(msg.channel_id, "Help yourself.")
+
+      { :command, ["source"] } ->
+        Api.create_message(msg.channel_id, "Here you go:\n `#{Application.fetch_env!(:reginald, :source)}`")
+
+      { :command, ["server" | _tail] } ->
         handle_server_command(msg, event)
+
+      { :chat, message } -> 
+        if !invalid_chat(msg) do
+          handle_chat(msg)
+        end
 
       _ ->
         :ignore
@@ -73,5 +89,17 @@ defmodule Reginald.Handler do
   # you don't have a method definition for each event type.
   def handle_event(_event) do
     :noop
+  end
+
+  defp handle_chat(msg) do
+    %{ author: %{ username: user }, content: message } = msg
+
+    Server.send_chat("§d§lDiscord §d§l(§r#{user}§d§l): #{message}")
+  end
+
+  defp invalid_chat(msg) do
+    %{ author: %{ bot: is_valid } } = msg
+
+    is_valid || false
   end
 end

@@ -26,4 +26,24 @@ defmodule Reginald.Handler.Server do
       "Server ip is #{Application.fetch_env!(:reginald, :external_minecraft_server)}."
     )
   end
+
+  def send_chat(message) do
+    internal = Application.fetch_env!(:reginald, :internal_minecraft_server)
+    port = Application.fetch_env!(:reginald, :server_api_port)
+    token = Application.fetch_env!(:reginald, :server_api_token)
+    url = "http://#{internal}:#{port}/api/v5/cmd"
+    headers = [ "X-WebAPI-Key": token, "Content-Type": "Application/json; Charset=utf-8" ]
+
+    HTTPoison.start()
+    resp = HTTPoison.post!(
+      url,
+      Poison.encode!([
+        %{
+          "command": "say #{message}",
+          "name": "say"
+        }
+      ]),
+      headers
+    )
+  end
 end
